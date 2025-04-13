@@ -2,50 +2,89 @@
 import gradio as gr
 from present import Chessboard
 
-# Create an instance of the Chessboard class with player info
+# Create an instance of the Chessboard class
 chessboard = Chessboard(
-    player1_name="Alice",
-    player2_name="Bob",
-    player1_api_key="alice_key_123",
-    player2_api_key="bob_key_456"
+    player1_name="Grok 2.0",
+    player2_name="Gemini",
+    # player1_api_key="alice_key_123",
+    # player2_api_key="bob_key_456"
 )
 
 # Create Gradio interface
 with gr.Blocks() as demo:
-    gr.Markdown("## Chessboard Display")
+    with gr.Row():
+        # Left Column: Player 1 Info and Buttons
+        with gr.Column(scale=1):
+            gr.Markdown("### Player 1 Info")
+            player1_info = gr.Textbox(
+                value=str(chessboard.get_player_info(1)),
+                label="Player 1 Details",
+                interactive=False
+            )
+            with gr.Row():
+                fetch_p1_rating = gr.Button("Fetch Rating")
+                clear_p1_rating = gr.Button("Clear Rating")
 
-    # Chessboard controls
-    move_input = gr.Textbox(label="Enter Move (e.g., e4)", placeholder="Leave blank to show current board")
-    output_html = gr.HTML(label="Chessboard")
-    show_button = gr.Button("Show Board")
-    reset_button = gr.Button("Reset Board")
+        # Middle Column: Chessboard and Controls
+        with gr.Column(scale=2):
+            output_html = gr.HTML(value=chessboard.show_chessboard(), label="Chessboard")
+            move_input = gr.Textbox(
+                label="Enter Move (e.g., e4)",
+                placeholder="Leave blank to show current board"
+            )
+            with gr.Row():
+                show_button = gr.Button("Show Board")
+                reset_button = gr.Button("Reset Board")
+            status_output = gr.Textbox(label="Status", interactive=False)
 
-    # Player info and API controls
-    gr.Markdown("### Player Info")
-    player_select = gr.Radio(choices=["Player 1", "Player 2"], label="Select Player", value="Player 1")
-    player_info_output = gr.Textbox(label="Player Info")
-    fetch_rating_button = gr.Button("Fetch Rating")
-    rating_output = gr.Textbox(label="Rating Result")
+        # Right Column: Player 2 Info and Buttons
+        with gr.Column(scale=1):
+            gr.Markdown("### Player 2 Info")
+            player2_info = gr.Textbox(
+                value=str(chessboard.get_player_info(2)),
+                label="Player 2 Details",
+                interactive=False
+            )
+            with gr.Row():
+                fetch_p2_rating = gr.Button("Fetch Rating")
+                clear_p2_rating = gr.Button("Clear Rating")
 
-    # Link buttons to class methods
-    show_button.click(fn=chessboard.show_chessboard, inputs=move_input, outputs=output_html)
-    reset_button.click(fn=chessboard.reset_board, outputs=output_html)
+    # Link chessboard buttons to class methods
+    def show_board_with_status(move):
+        result = chessboard.show_chessboard(move)
+        if "Invalid move" in result:
+            return result, "Invalid move!"
+        return result, f"Last move: {move}" if move else "Board updated"
 
+    show_button.click(
+        fn=show_board_with_status,
+        inputs=move_input,
+        outputs=[output_html, status_output]
+    )
+    reset_button.click(
+        fn=lambda: (chessboard.reset_board(), "Board reset"),
+        outputs=[output_html, status_output]
+    )
 
-    # Player info and API interactions
-    def get_player_info(player):
-        player_num = 1 if player == "Player 1" else 2
-        return str(chessboard.get_player_info(player_num))
+    # Link player info buttons to class methods
+    def update_p1_rating():
+        result = chessboard.fetch_player_rating(1)
+        return str(chessboard.get_player_info(1)) if "rating" in result else result
 
+    def clear_p1_rating():
+        return str(chessboard.clear_player_rating(1))
 
-    def fetch_rating(player):
-        player_num = 1 if player == "Player 1" else 2
-        # Replace with real API endpoint if available
-        return chessboard.fetch_player_rating(player_num, endpoint="https://api.example.com/rating")
+    def update_p2_rating():
+        result = chessboard.fetch_player_rating(2)
+        return str(chessboard.get_player_info(2)) if "rating" in result else result
 
+    def clear_p2_rating():
+        return str(chessboard.clear_player_rating(2))
 
-    player_select.change(fn=get_player_info, inputs=player_select, outputs=player_info_output)
-    fetch_rating_button.click(fn=fetch_rating, inputs=player_select, outputs=rating_output)
+    # fetch_p1_rating.click(fn=update_p1_rating, outputs=player1_info)
+    # clear_p1_rating.click(fn=clear_p1_rating, outputs=player1_info)
+    # fetch_p2_rating.click(fn=update_p2_rating, outputs=player2_info)
+    # clear_p2_rating.click(fn=clear_p2_rating, outputs=player2_info)
 
 # Launch the app
 demo.launch()
